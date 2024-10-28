@@ -1,7 +1,4 @@
 # Importing the required libraries
-from git import Object
-from git.repo import Repo
-from networkx import sigma
 import numpy as np
 from math import log, floor, ceil
 from scipy import linalg
@@ -191,7 +188,7 @@ class Lasso(object):
             formula = f"{self.intercept_:.2f} + " + formula                     # Add the intercept to the formula
         return f"y = {formula}"
 
-class Bayesian(Object):
+class Bayesian(object):
     """
     Bayesian Regression Class
     y = 
@@ -259,7 +256,7 @@ class Bayesian(Object):
             
             # Check for convergence
             if coef_old_ is not None and np.sum(np.abs(coef_ - coef_old_)) < self.tol:
-                print(f"Converged in {iter} iterations.")
+                # print(f"Converged in {iter} iterations.")
                 break
             coef_old_ = np.copy(coef_)  # Copy the coefficients
         
@@ -276,6 +273,121 @@ class Bayesian(Object):
         
         return self
     
+    def tune(self, X, y, beta1=0.9, beta2=0.999, iter=1000):
+        """
+        Automatically tune the hyperparameters alpha_1, alpha_2, lambda_1, lambda_2
+        """
+       
+        # Initialize the best values of the hyperparameters
+        best_alpha_1 = None
+        best_alpha_2 = None
+        best_lambda_1 = None
+        best_lambda_2 = None
+        
+        self.alpha_1 = 1e-02
+        self.alpha_2 = 1e-02
+        self.lambda_1 = 1e-02
+        self.lambda_2 = 1e-02
+        
+        # Initialize the best MSE
+        best_mse = float('inf')
+        
+        # Use ADAM optimizer to tune the hyperparameters
+        beta1 = beta1         # Exponential decay rate for the first moment estimates
+        beta2 = beta2       # Exponential decay rate for the second moment estimates
+        epsilon = 1e-8      # A small constant to prevent division by zero
+        m_alpha_1 = 0       # The first moment for alpha_1
+        v_alpha_1 = 0       # The second moment for alpha_1
+        m_alpha_2 = 0       # The first moment for alpha_2
+        v_alpha_2 = 0       # The second moment for alpha_2
+        m_lambda_1 = 0      # The first moment for lambda_1
+        v_lambda_1 = 0      # The second moment for lambda_1
+        m_lambda_2 = 0      # The first moment for lambda_2
+        v_lambda_2 = 0      # The second moment for lambda_2
+        t = 0               # The time step
+        
+        def _compute_gradient_alpha_1():
+            """Compute the gradient of the loss function with respect to alpha_1"""
+            return -0.5 * (np.sum(self.coef_ ** 2) + 2 * self.alpha_2)
+
+        def _compute_gradient_alpha_2():
+            """Compute the gradient of the loss function with respect to alpha_2"""
+            return -0.5 * (self.alpha_1 / self.alpha_2 ** 2)
+
+        def _compute_gradient_lambda_1():
+            """Compute the gradient of the loss function with respect to lambda_1"""
+            return -0.5 * (np.sum(self.coef_ ** 2) + 2 * self.lambda_2)
+
+        def _compute_gradient_lambda_2():
+            """Compute the gradient of the loss function with respect to lambda_2"""
+            return -0.5 * (self.lambda_1 / self.lambda_2 ** 2)
+        
+        # loop untill convergence
+        while True:
+            # Fit the model
+            self.fit(X, y)
+            
+            # Compute the mean squared error
+            mse = np.mean((y - self.predict(X)) ** 2)
+            if mse < best_mse:
+                print(f"\tImproved after, No of iterations: {t}, MSE: {mse:.2f}")
+                best_mse = mse
+                best_alpha_1 = self.alpha_1
+                best_alpha_2 = self.alpha_2
+                best_lambda_1 = self.lambda_1
+                best_lambda_2 = self.lambda_2
+            
+            # Compute the gradients
+            grad_alpha_1 = _compute_gradient_alpha_1()
+            grad_alpha_2 = _compute_gradient_alpha_2()
+            grad_lambda_1 =_compute_gradient_lambda_1()
+            grad_lambda_2 =_compute_gradient_lambda_2()
+            
+            # Update the moving averages of the gradients
+            m_alpha_1 = beta1 * m_alpha_1 + (1 - beta1) * grad_alpha_1
+            v_alpha_1 = beta2 * v_alpha_1 + (1 - beta2) * grad_alpha_1**2
+            m_alpha_2 = beta1 * m_alpha_2 + (1 - beta1) * grad_alpha_2
+            v_alpha_2 = beta2 * v_alpha_2 + (1 - beta2) * grad_alpha_2**2
+            m_lambda_1 = beta1 * m_lambda_1 + (1 - beta1) * grad_lambda_1
+            v_lambda_1 = beta2 * v_lambda_1 + (1 - beta2) * grad_lambda_1**2
+            m_lambda_2 = beta1 * m_lambda_2 + (1 - beta1) * grad_lambda_2
+            v_lambda_2 = beta2 * v_lambda_2 + (1 - beta2) * grad_lambda_2**2
+            
+            # Compute the bias-corrected estimates
+            m_alpha_1_hat = m_alpha_1 / (1 - beta1**(t + 1))
+            v_alpha_1_hat = v_alpha_1 / (1 - beta2**(t + 1))
+            m_alpha_2_hat = m_alpha_2 / (1 - beta1**(t + 1))
+            v_alpha_2_hat = v_alpha_2 / (1 - beta2**(t + 1))
+            m_lambda_1_hat = m_lambda_1 / (1 - beta1**(t + 1))
+            v_lambda_1_hat = v_lambda_1 / (1 - beta2**(t + 1))
+            m_lambda_2_hat = m_lambda_2 / (1 - beta1**(t + 1))
+            v_lambda_2_hat = v_lambda_2 / (1 - beta2**(t + 1))
+            
+            # Update the hyperparameters
+            self.alpha_1 -= 0.01 * m_alpha_1_hat / (np.sqrt(v_alpha_1_hat) + epsilon)
+            self.alpha_2 -= 0.01 * m_alpha_2_hat / (np.sqrt(v_alpha_2_hat) + epsilon)
+            self.lambda_1 -= 0.01 * m_lambda_1_hat / (np.sqrt(v_lambda_1_hat) + epsilon)
+            self.lambda_2 -= 0.01 * m_lambda_2_hat / (np.sqrt(v_lambda_2_hat) + epsilon)
+            
+            # Check for convergence, if the gradients are close to zero
+            if np.abs(grad_alpha_1) < 1e-6 and np.abs(grad_alpha_2) < 1e-6 and np.abs(grad_lambda_1) < 1e-6 and np.abs(grad_lambda_2) < 1e-6:
+                print(f"Converged in {t} iterations.")
+                break
+            elif t >= iter:
+                print(f"Stopped after {t} iterations.")
+                break
+            t+=1
+        
+        # Fit the model with the best hyperparameters
+        self.alpha_1 = best_alpha_1
+        self.alpha_2 = best_alpha_2
+        self.lambda_1 = best_lambda_1
+        self.lambda_2 = best_lambda_2
+        reg.fit(X, y)
+            
+        # Return the best hyperparameters, and fitted model
+        return best_alpha_1, best_alpha_2, best_lambda_1, best_lambda_2
+        
     def predict(self, X):
         """
         Predict using the linear model
@@ -293,10 +405,18 @@ class Bayesian(Object):
         return f"y = {formula}"
 
 if __name__ == "__main__":
+    from sklearn.metrics import r2_score
 
     from sklearn.datasets import make_regression
-    X, y = make_regression(n_samples=1000, n_features=5, noise=20, random_state=42)
+    X, y = make_regression(n_samples=1000, n_features=5, noise=25, random_state=42)
     to_predict = np.array([[1,2,3,4,5]])
+    
+    # import pandas as pd
+    # df = pd.read_csv('data/carsDotCom_prepared.csv')
+    # X = df.drop(columns=['Price']).values
+    # y = df['Price'].values
+    
+    to_predict = X[0].reshape(1, -1)
 
     # Example Usage OLS (Ordinary Least Squares) Regression
     # ----------------------------------------------------------------------------
@@ -304,6 +424,7 @@ if __name__ == "__main__":
     reg.fit(X, y)
 
     print("\nExample Usage OLS (Ordinary Least Squares) Regression")
+    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
     print(f"Regression Coefficients: {reg.coef_}")
     print(f"Regression Intercept: {reg.intercept_}")
     print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
@@ -316,6 +437,7 @@ if __name__ == "__main__":
     reg.fit(X, y)
 
     print("\nExample Usage Ridge Regression")
+    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
     print(f"Regression Coefficients: {reg.coef_}")
     print(f"Regression Intercept: {reg.intercept_}")
     print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
@@ -328,6 +450,7 @@ if __name__ == "__main__":
     reg.fit(X, y)
 
     print("\nExample Usage Lasso Regression")
+    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
     print(f"Regression Coefficients: {reg.coef_}")
     print(f"Regression Intercept: {reg.intercept_}")
     print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
@@ -339,6 +462,21 @@ if __name__ == "__main__":
     reg.fit(X, y)
 
     print("\nExample Usage Bayesian Regression")
+    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
+    print(f"Regression Coefficients: {reg.coef_}")
+    print(f"Regression Intercept: {reg.intercept_}")
+    print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
+    print(f"Regression Formula: {reg.get_formula()}")
+    
+    print("\nExample Usage Bayesian Regression with Hyperparameter Tuning")
+    reg = Bayesian(max_iter=300, tol=0.0001, alpha_1=1e-06, alpha_2=1e-06, lambda_1=1e-06, lambda_2=1e-06, fit_intercept = True)
+    alpha_1, alpha_2, lambda_1, lambda_2 = reg.tune(X, y, beta1=0.9, beta2=0.999, iter=1000)
+    reg.fit(X, y)
+    print(f"Best Hyperparameters: alpha_1={alpha_1:.2f}, alpha_2={alpha_2:.2f}, lambda_1={lambda_1:.2f}, lambda_2={lambda_2:.2f}")
+    
+    # reg = Bayesian(alpha_1=alpha_1, alpha_2=alpha_2, lambda_1=lambda_1, lambda_2=lambda_2, fit_intercept = True)
+    print("Results after tuning")
+    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
     print(f"Regression Coefficients: {reg.coef_}")
     print(f"Regression Intercept: {reg.intercept_}")
     print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
@@ -346,41 +484,49 @@ if __name__ == "__main__":
     
     
 
-    # Example plot
-    # ----------------------------------------------------------------------------
-    import matplotlib.pyplot as plt
-    X, y = make_regression(n_samples=1000, n_features=1, noise=15, random_state=42)
-
-    # Plotting the points X and y
-    plt.figure(figsize=(10, 6))
-    plt.scatter(X[:, 0], y, color='blue', label='Data Points')
-
-    # Plotting the OLS regression line
-    reg = OrdinaryLeastSquares(fit_intercept=True)
-    reg.fit(X, y)
-    plt.plot(X, reg.predict(X), color='red', label='OLS Regression Line')
-
-    # Plotting the Ridge regression line
-    reg = Ridge(alpha=0.5, fit_intercept=True)
-    reg.fit(X, y)
-    plt.plot(X, reg.predict(X), color='green', label='Ridge Regression Line, Alpha=0.5')
-
-    # Plotting the Lasso regression line
-    reg = Lasso(alpha=0.5, fit_intercept=True)
-    reg.fit(X, y)
-    plt.plot(X, reg.predict(X), color='orange', label='Lasso Regression Line, Alpha=0.5')
+    # # # Example plot
+    # # ----------------------------------------------------------------------------
+    # import matplotlib.pyplot as plt
     
-    # Plotting the Bayesian regression line
-    reg = Bayesian(max_iter=300, tol=0.0001, alpha_1=1e-06, alpha_2=1e-06, lambda_1=1e-06, lambda_2=1e-06, fit_intercept = True)
-    reg.fit(X, y)
-    plt.plot(X, reg.predict(X), color='purple', label='Bayesian Regression Line')
+    # X, y = make_regression(n_samples=1000, n_features=1, noise=15, random_state=42)
 
-    # Adding labels and legend
-    plt.xlabel('Feature 0')
-    plt.ylabel('Target')
-    plt.title('Regression Lines')
-    plt.legend()
-    plt.show()
+    # # Plotting the points X and y
+    # plt.figure(figsize=(10, 6))
+    # plt.scatter(X[:, 0], y, color='blue', label='Data Points')
+
+    # # Plotting the OLS regression line
+    # reg = OrdinaryLeastSquares(fit_intercept=True)
+    # reg.fit(X, y)
+    # plt.plot(X, reg.predict(X), color='red', label='OLS Regression Line')
+
+    # # Plotting the Ridge regression line
+    # reg = Ridge(alpha=0.5, fit_intercept=True)
+    # reg.fit(X, y)
+    # plt.plot(X, reg.predict(X), color='green', label='Ridge Regression Line, Alpha=0.5')
+
+    # # Plotting the Lasso regression line
+    # reg = Lasso(alpha=0.5, fit_intercept=True)
+    # reg.fit(X, y)
+    # plt.plot(X, reg.predict(X), color='orange', label='Lasso Regression Line, Alpha=0.5')
+    
+    # # Plotting the Bayesian regression line
+    # reg = Bayesian(max_iter=300, tol=0.0001, alpha_1=1e-06, alpha_2=1, lambda_1=1, lambda_2=1e-06, fit_intercept = True)
+    # reg.fit(X, y)
+    # plt.plot(X, reg.predict(X), color='purple', label='Bayesian Regression Line')
+    
+    # # Plotting the Bayesian regression line, after tuning
+    # reg = Bayesian(max_iter=300, tol=0.0001, alpha_1=1e-06, alpha_2=1e-06, lambda_1=1e-06, lambda_2=1e-06, fit_intercept = True)
+    # alpha_1, alpha_2, lambda_1, lambda_2 = reg.tune(X, y, beta1=0.9, beta2=0.999, iter=1000)
+    # reg.fit(X, y)
+    # plt.plot(X, reg.predict(X), color='brown', label='Bayesian Regression Line, Tuned')
+    
+
+    # # Adding labels and legend
+    # plt.xlabel('Feature 0')
+    # plt.ylabel('Target')
+    # plt.title('Regression Lines')
+    # plt.legend()
+    # plt.show()
 
 
     # # Example plot, Ridge regression lines for different alpha values
