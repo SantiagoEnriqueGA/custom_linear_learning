@@ -9,12 +9,10 @@ class Utility(object):
     """
     pass
 
-
 class OrdinaryLeastSquares(object):
     """
     Ordinary Least Squares (OLS) class
     """
-
     def __init__(self, fit_intercept=True) -> None:
         self.fit_intercept = fit_intercept
         self.coef_ = None
@@ -191,8 +189,7 @@ class Lasso(object):
 class Bayesian(object):
     """
     Bayesian Regression Class
-    y = 
-    
+   
     Args:
         max_iter: int, default=300
             The maximum number of iterations to perform.
