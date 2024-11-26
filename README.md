@@ -213,3 +213,8 @@ Classification Report:
    macro avg       0.82      0.82      0.81       600
 weighted avg       0.82      0.81      0.81       600
 ```
+
+## LDA and QDA Visualized
+The plots below compare Linear Discriminant Analysis (LDA) and Quadratic Discriminant Analysis (QDA) using the same dataset. The ellipses represent the class conditional densities, which show the distribution of the data points for each class.
+
+![alt text](https://raw.githubusercontent.com/SantiagoEnriqueGA/custom_linear_learning/refs/heads/main/plots/lda_qda.png)
