@@ -48,7 +48,7 @@ class LinearDiscriminantAnalysis(object):
         """
         X_centered = X - np.mean(X, axis=0)                         # Center the data
         U, S, Vt = np.linalg.svd(X_centered, full_matrices=False)   # Perform SVD, U and Vt are the left and right singular vectors, S is the singular values
-        rank = np.sum(S > 1e-10)                                    # Compute the rank of the matrix
+        rank = np.sum(S > 1e-10)                                    # Compute the rank of the matrix, i.e., the number of singular values greater than 1e-10
         
         # Select only the top components
         U = U[:, :rank]
