@@ -39,6 +39,10 @@ class LinearDiscriminantAnalysis(object):
         
         if self.solver == 'svd':
             self._fit_svd(X, y)
+        elif self.solver == 'lsqr':
+            self._fit_lsqr(X, y)
+        elif self.solver == 'eigen':
+            self._fit_eigen(X, y)
         else:
             raise ValueError(f"Solver '{self.solver}' is not yet supported.")
     
@@ -58,6 +62,26 @@ class LinearDiscriminantAnalysis(object):
         self.scalings_ = Vt.T / S                                                           # Compute the transformation matrix, i.e., the scalings
         self.means_ = {cls: mean @ self.scalings_ for cls, mean in self.means_.items()}     # Transform the means, i.e., the mean of each feature per class
         self.covariance_ = np.diag(1 / S**2)                                                # Transform the covariance matrix, i.e., the inverse of the singular values squared
+        
+    def _fit_lsqr(self, X, y):
+        """
+        Fit the model using least squares.
+        """
+        X_centered = X - np.mean(X, axis=0)                                                 # Center the data
+        self.scalings_ = np.linalg.pinv(X_centered.T @ X_centered) @ X_centered.T @ y       # Compute the transformation matrix, i.e., the scalings
+        self.means_ = {cls: mean @ self.scalings_ for cls, mean in self.means_.items()}     # Transform the means, i.e., the mean of each feature per class
+        self.covariance_ = np.cov(X_centered @ self.scalings_, rowvar=False)                # Transform the covariance matrix, i.e., the covariance matrix of all features
+        
+    def _fit_eigen(self, X, y):
+        """
+        Fit the model using eigenvalue decomposition.
+        """
+        X_centered = X - np.mean(X, axis=0)                                                 # Center the data
+        cov = X_centered.T @ X_centered / X_centered.shape[0]                               # Compute the covariance matrix
+        eigvals, eigvecs = np.linalg.eigh(cov)                                              # Compute the eigenvalues and eigenvectors of the covariance matrix
+        self.scalings_ = eigvecs[:, -1]                                                     # Compute the transformation matrix, i.e., the scalings
+        self.means_ = {cls: mean @ self.scalings_ for cls, mean in self.means_.items()}     # Transform the means, i.e., the mean of each feature per class
+        self.covariance_ = np.cov(X_centered @ self.scalings_, rowvar=False)                # Transform the covariance matrix, i.e., the covariance matrix of all features
     
     def predict(self, X):
         """
@@ -173,6 +197,9 @@ def plot_ellipse(mean, cov, color, ax, label):
     
 def fig_add_discriminant_analysis(X, y, da, ax):
     """Add a discriminant analysis plot to a figure."""
+    from sklearn.inspection import DecisionBoundaryDisplay
+    from sklearn.metrics import accuracy_score
+    
     da.fit(X, y)
 
     # Predict the labels
@@ -225,6 +252,44 @@ if __name__ == '__main__':
     import matplotlib.pyplot as plt 
     from sklearn.inspection import DecisionBoundaryDisplay
     from sklearn.metrics import accuracy_score
+    
+    # ---------------------------------------------------------------------
+    # LDA SVD vs LSQR vs EIGEN
+    # ---------------------------------------------------------------------
+    
+    cov_class_1 = np.array([[0.0, -1.0], [2.5, 0.7]]) * 2.0     # Covariance matrix for class 1, scaled by 2.0
+    cov_class_2 = cov_class_1.T                                 # Covariance matrix for class 2, same as class 1 but transposed
+    
+    # Generate data
+    X, y = make_data(n_samples=1000, n_features=2, cov_class_1=cov_class_1, cov_class_2=cov_class_2, shift=[4,1], seed=1)
+
+    x_min, x_max = floor(np.min(X[:, 0])), ceil(np.max(X[:, 0]))
+    y_min, y_max = floor(np.min(X[:, 1])), ceil(np.max(X[:, 1]))
+
+    # Create subplots
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+
+    # Fit and plot LDA model with SVD solver
+    lda_svd = LinearDiscriminantAnalysis(solver='svd')
+    lda_svd_acc = fig_add_discriminant_analysis(X, y, lda_svd, axes[0])
+    axes[0].set_title(f'LDA SVD Decision Boundary (Accuracy: {lda_svd_acc:.2f})')
+
+    # Fit and plot LDA model with LSQR solver
+    lda_lsqr = LinearDiscriminantAnalysis(solver='lsqr')
+    lda_lsqr_acc = fig_add_discriminant_analysis(X, y, lda_lsqr, axes[1])
+    axes[1].set_title(f'LDA LSQR Decision Boundary (Accuracy: {lda_lsqr_acc:.2f})')
+
+    # Fit and plot LDA model with EIGEN solver
+    lda_eigen = LinearDiscriminantAnalysis(solver='eigen')
+    lda_eigen_acc = fig_add_discriminant_analysis(X, y, lda_eigen, axes[2])
+    axes[2].set_title(f'LDA EIGEN Decision Boundary (Accuracy: {lda_eigen_acc:.2f})')
+
+    plt.tight_layout()
+    plt.show()
+
+    # ---------------------------------------------------------------------
+    # LDA VS QDA
+    # ---------------------------------------------------------------------
         
     cov_class_1 = np.array([[0.0, -1.0], [2.5, 0.7]]) * 2.0     # Covariance matrix for class 1, scaled by 2.0
     cov_class_2 = cov_class_1.T                                 # Covariance matrix for class 2, same as class 1 but transposed
