@@ -154,6 +154,11 @@ Regression Intercept: 7.74
 Regression Formula: y = 7.74 + 33.7898 * x_0 + 42.2570 * x_1 + 13.4509 * x_2 + 26.5918 * x_3 + 25.7650 * x_4
 ```
 
+### RANSAC Visualized
+The plot below shows how RANSAC results in a fitted model that best represents the inliers of the data.
+
+![alt text](https://raw.githubusercontent.com/SantiagoEnriqueGA/custom_linear_learning/refs/heads/main/plots/ransac_vis.png)
+
 ## Bayesian Regression
 
 Bayesian Regression is a type of regression that incorporates prior distributions on the parameters and updates these distributions based on the observed data.
@@ -266,7 +271,7 @@ Classification Report:
 weighted avg       0.82      0.81      0.81       600
 ```
 
-## LDA and QDA Visualized
+### LDA and QDA Visualized
 The plots below compare Linear Discriminant Analysis (LDA) and Quadratic Discriminant Analysis (QDA) using the same dataset. The ellipses represent the class conditional densities, which show the distribution of the data points for each class.
 
 ![alt text](https://raw.githubusercontent.com/SantiagoEnriqueGA/custom_linear_learning/refs/heads/main/plots/lda_qda.png)
