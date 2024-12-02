@@ -67,13 +67,69 @@ class LinearDiscriminantAnalysis(object):
         """
         Fit the model using least squares.
         """
-        pass
+        # Create matrix for class-specific means
+        mean_matrix = np.vstack([self.means_[cls] for cls in self.classes_])
+
+        # Solve least squares problem
+        X_centered = X - np.mean(X, axis=0)
+        Y = np.zeros((X.shape[0], len(self.classes_)))
+        for i, cls in enumerate(self.classes_):
+            Y[:, i] = (y == cls).astype(float)
+
+        # Solve the normal equations using least squares
+        coef, residuals, rank, singular_values = linalg.lstsq(X_centered, Y)
+
+        # Compute scalings
+        self.scalings_ = coef
+
+        # Transform class means and store them back in the dictionary
+        self.means_ = {cls: (self.means_[cls] @ self.scalings_) for cls in self.classes_}
         
+        # Update the covariance matrix to match the transformed data
+        self.covariance_ = np.cov(X_centered @ self.scalings_, rowvar=False)
+
     def _fit_eigen(self, X, y):
         """
         Fit the model using eigenvalue decomposition.
         """
-        pass
+        # Center the data by subtracting the global mean
+        X_centered = X - np.mean(X, axis=0)
+
+        # Compute the total scatter matrix (within-class + between-class)
+        # We'll compute this by first computing the within-class scatter matrix
+        Sw = np.zeros((X.shape[1], X.shape[1]))
+        Sb = np.zeros((X.shape[1], X.shape[1]))
+
+        for cls in self.classes_:
+            X_cls = X[y == cls]
+            X_cls_centered = X_cls - self.means_[cls]
+            
+            # Within-class scatter matrix
+            Sw += X_cls_centered.T @ X_cls_centered
+            
+            # Between-class scatter matrix
+            cls_mean_centered = self.means_[cls] - np.mean(X, axis=0)
+            Sb += len(X_cls) * (cls_mean_centered[:, np.newaxis] @ cls_mean_centered[np.newaxis, :])
+
+        # Solve the generalized eigenvalue problem: Sb @ w = λ * Sw @ w
+        # This requires inverting the within-class scatter matrix
+        eigenvalues, eigenvectors = linalg.eigh(np.linalg.inv(Sw) @ Sb)
+
+        # Sort eigenvalues and eigenvectors in descending order
+        idx = np.argsort(eigenvalues)[::-1]
+        eigenvalues = eigenvalues[idx]
+        eigenvectors = eigenvectors[:, idx]
+
+        # Select top eigenvectors
+        n_components = len(self.classes_)
+        self.scalings_ = eigenvectors[:, :n_components]
+
+        # Transform class means
+        self.means_ = {cls: (self.means_[cls] @ self.scalings_) for cls in self.classes_}
+
+        # Transform the covariance matrix
+        # Use the inverse of the eigenvalues as the diagonal of the transformed covariance
+        self.covariance_ = np.diag(1.0 / (eigenvalues[:n_components] + 1e-11))
     
     def predict(self, X):
         """
