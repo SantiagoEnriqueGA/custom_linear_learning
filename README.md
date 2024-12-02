@@ -8,6 +8,7 @@ This project implements the following:
 &emsp; [Ridge Regression](#ridge-regression)  
 &emsp; [Lasso Regression](#lasso-regression)   
 &emsp; [RANSAC Regression](#ransac-regression)   
+&emsp; [Passive Aggressive Regresson](#passive-aggressive-regresson)   
 &emsp; [Bayesian Regression](#bayesian-regression)   
 &emsp; [Linear Discriminant Analysis (LDA)](#linear-discriminant-analysis-lda)   
 &emsp; [Quadratic Discriminant Analysis (QDA)](#quadratic-discriminant-analysis-qda)
@@ -160,7 +161,7 @@ The plot below shows how RANSAC results in a fitted model that better represents
 ![alt text](https://raw.githubusercontent.com/SantiagoEnriqueGA/custom_linear_learning/refs/heads/main/plots/ransac_vis.png)
 
 
-## Passive Aggressive Regressor
+## Passive Aggressive Regresson
 This implements a Passive Aggressive Regressor model for regression tasks.
 
 Passive Aggressive Regressor is an online learning algorithm that is particularly useful for large-scale learning. 
