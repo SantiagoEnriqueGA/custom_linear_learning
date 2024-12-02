@@ -33,5 +33,6 @@ plt.title("RANSAC Regression Visualization")
 plt.xlabel("X")
 plt.ylabel("y")
 plt.legend(loc="lower right")
+plt.tight_layout()
 plt.savefig("plots/ransac_vis.png", dpi=300)
 
