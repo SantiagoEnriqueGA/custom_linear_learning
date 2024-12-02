@@ -7,6 +7,7 @@ This project implements the following:
 &emsp; [Ordinary Least Squares (OLS)](#ordinary-least-squares-ols-regression)  
 &emsp; [Ridge Regression](#ridge-regression)  
 &emsp; [Lasso Regression](#lasso-regression)   
+&emsp; [RANSAC Regression](#ransac-regression)   
 &emsp; [Bayesian Regression](#bayesian-regression)   
 &emsp; [Linear Discriminant Analysis (LDA)](#linear-discriminant-analysis-lda)   
 &emsp; [Quadratic Discriminant Analysis (QDA)](#quadratic-discriminant-analysis-qda)
@@ -100,6 +101,57 @@ R^2 Score: 0.74
 Regression Coefficients: [20.79, 35.49, 16.32, 19.58, 8.02]
 Regression Intercept: 14.28
 Regression Formula: y = 14.28 + 20.7884 * x_0 + 35.4879 * x_1 + 16.3211 * x_2 + 19.5828 * x_3 + 8.0185 * x_4
+```
+
+## RANSAC Regression
+Performs RANSAC (Random Sample Consensus) regression to fit a model to data.
+
+RANSAC is an iterative method to estimate parameters of a mathematical model
+from a set of observed data which contains outliers. It is a non-deterministic
+algorithm producing only a reasonable result with a certain probability, which
+increases as more iterations are allowed. The algorithm works as follows:
+1. Randomly select a subset of the original data.
+2. Fit a model to this subset.
+3. Determine the number of outliers by testing all the other data points against the fitted model.
+4. Repeat the process for a fixed number of iterations or until a model with a sufficiently small number of outliers is found.
+
+Gives a fitted model that best represents the inliers of the data.
+
+
+### Usage Example
+```python
+from linearModels import RANSAC
+from sklearn.datasets import make_regression
+from sklearn.metrics import r2_score
+
+X, y = make_regression(n_samples=1000, n_features=5, noise=25, random_state=42)
+reg = RANSAC(n=20, k=300, t=0.01, d=10, model=None, 
+                 auto_scale_t=True, scale_t_factor=2,
+                 auto_scale_n=False, scale_n_factor=2                
+                 )
+reg.fit(X, y)
+
+r2 = round(r2_score(y, reg.predict(X)), 2)
+coef = [round(c, 2) for c in reg.best_fit.coef_]
+intercept = round(reg.best_fit.intercept_, 2)
+formula = reg.get_formula()
+
+print(f"R^2 Score: {r2}")
+print(f"Regression Coefficients: {coef}")
+print(f"Regression Intercept: {intercept}")
+print(f"Regression Formula: {formula}")
+```
+
+Output: 
+``` 
+        No model fit, scaling threshold from 0.01 to 0.02  
+        No model fit, scaling threshold from 0.02 to 0.04  
+        No model fit, scaling threshold from 0.04 to 0.08  
+        No model fit, scaling threshold from 0.08 to 0.16  
+R^2 Score: 0.82  
+Regression Coefficients: [33.79, 42.26, 13.45, 26.59, 25.77]  
+Regression Intercept: 7.74  
+Regression Formula: y = 7.74 + 33.7898 * x_0 + 42.2570 * x_1 + 13.4509 * x_2 + 26.5918 * x_3 + 25.7650 * x_4
 ```
 
 ## Bayesian Regression

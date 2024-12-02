@@ -67,21 +67,13 @@ class LinearDiscriminantAnalysis(object):
         """
         Fit the model using least squares.
         """
-        X_centered = X - np.mean(X, axis=0)                                                 # Center the data
-        self.scalings_ = np.linalg.pinv(X_centered.T @ X_centered) @ X_centered.T @ y       # Compute the transformation matrix, i.e., the scalings
-        self.means_ = {cls: mean @ self.scalings_ for cls, mean in self.means_.items()}     # Transform the means, i.e., the mean of each feature per class
-        self.covariance_ = np.cov(X_centered @ self.scalings_, rowvar=False)                # Transform the covariance matrix, i.e., the covariance matrix of all features
+        pass
         
     def _fit_eigen(self, X, y):
         """
         Fit the model using eigenvalue decomposition.
         """
-        X_centered = X - np.mean(X, axis=0)                                                 # Center the data
-        cov = X_centered.T @ X_centered / X_centered.shape[0]                               # Compute the covariance matrix
-        eigvals, eigvecs = np.linalg.eigh(cov)                                              # Compute the eigenvalues and eigenvectors of the covariance matrix
-        self.scalings_ = eigvecs[:, -1]                                                     # Compute the transformation matrix, i.e., the scalings
-        self.means_ = {cls: mean @ self.scalings_ for cls, mean in self.means_.items()}     # Transform the means, i.e., the mean of each feature per class
-        self.covariance_ = np.cov(X_centered @ self.scalings_, rowvar=False)                # Transform the covariance matrix, i.e., the covariance matrix of all features
+        pass
     
     def predict(self, X):
         """
@@ -100,7 +92,7 @@ class LinearDiscriminantAnalysis(object):
         for cls in self.classes_:
             mean = self.means_[cls]     # Mean of each feature per class
             prior = self.priors_[cls]   # Prior probability of class cls
-            
+
             # Score is the log-likelihood of each class
             score = X @ np.linalg.inv(self.covariance_) @ mean.T - 0.5 * mean @ np.linalg.inv(self.covariance_) @ mean.T + log(prior)
             

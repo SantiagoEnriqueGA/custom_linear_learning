@@ -1,4 +1,5 @@
 # Importing the required libraries
+import re
 import numpy as np
 from math import log, floor, ceil
 from scipy import linalg
@@ -401,6 +402,108 @@ class Bayesian(object):
             formula = f"{self.intercept_:.2f} + " + formula                     # Add the intercept to the formula
         return f"y = {formula}"
 
+class RANSAC(object):
+    """
+    RANSAC (Random Sample Consensus) class
+    """
+    def __init__(self, n=10, k=100, t=0.05, d=10, model=None, 
+                 auto_scale_t=False, scale_t_factor=2,
+                 auto_scale_n=False, scale_n_factor=2
+                 ):
+        """
+        Initialize the linear model with the given parameters.
+        """
+        # Can only scale one of the threshold or the number of data points
+        assert not (auto_scale_t and auto_scale_n), "Can only scale one of the threshold or the number of data points"
+        
+        # Default model is Ordinary Least Squares
+        self.model = OrdinaryLeastSquares(fit_intercept=True) if model is None else model
+        
+        self.n = n                  # Number of data points to estimate parameters
+        self.k = k                  # Maximum iterations allowed
+        self.t = t                  # Threshold value to determine if points are fit well, in terms of residuals
+        self.d = d                  # Number of close data points required to assert model fits well
+                
+        self.best_fit = None        # Best model fit
+        self.best_error = np.inf    # Best error
+        
+        # If after all iterations, the model was not fit, scale the threshold until it fits
+        self.scale_threshold = auto_scale_t
+        self.scale_t_factor = scale_t_factor
+        
+        # If after all iterations, the model was not fit, scale the number of data points until it fits
+        self.scale_n = auto_scale_n
+        self.scale_n_factor = scale_n_factor
+    
+    def _square_loss(self, y_true, y_pred):
+        """
+        Compute the square loss
+        """
+        return (y_true - y_pred) ** 2
+    
+    def _mean_square_loss(self, y_true, y_pred):
+        """
+        Compute the mean square loss
+        """
+        return np.mean(self._square_loss(y_true, y_pred))
+    
+    def fit(self, X, y):
+        """
+        Fit the model to the data, using RANSAC
+        """
+        for _ in range(self.k):
+            # Randomly select n data points
+            idx = np.random.choice(X.shape[0], self.n, replace=False)
+            X_subset, y_subset = X[idx], y[idx]
+            
+            # Fit the model
+            self.model.fit(X_subset, y_subset)
+            
+            # Compute the residuals
+            y_pred = self.model.predict(X)
+            residuals = np.abs(y - y_pred)
+            
+            # Compute the inliers, the data points that are fit well
+            inliers = residuals < self.t
+            
+            # Check if the model fits well
+            if np.sum(inliers) > self.d:
+                # Update the best model
+                error = np.sum(self._square_loss(y, y_pred))
+                if error < self.best_error:
+                    self.best_error = error
+                    self.best_fit = self.model
+        
+        # If the model was not fit, scale the threshold
+        if self.best_fit is None and self.scale_threshold:
+            print(f"\tNo model fit, scaling threshold from {self.t} to {self.scale_t_factor * self.t}")
+            self.t *= self.scale_t_factor
+            self.fit(X, y)
+        
+        # If the model was not fit, scale the number of data points
+        if self.best_fit is None and self.scale_n:
+            if (self.scale_n_factor * self.n) > X.shape[0]:
+                raise ValueError(f"Cannot scale number of data points beyond the number of data points available.")               
+            
+            print(f"\tNo model fit, scaling number of data points from {self.n} to {self.scale_n_factor * self.n}")
+            self.n *= self.scale_n_factor
+            self.fit(X, y)
+            
+    def predict(self, X):
+        """
+        Predict using the best fit model
+        """
+        return self.best_fit.predict(X)
+    
+    def get_formula(self):
+        """
+        Returns the formula of the model
+        """
+        try:
+            return self.best_fit.get_formula()
+        except:
+            return "No model fit available"
+
 if __name__ == "__main__":
     from sklearn.metrics import r2_score
 
@@ -476,6 +579,19 @@ if __name__ == "__main__":
     print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
     print(f"Regression Coefficients: {reg.coef_}")
     print(f"Regression Intercept: {reg.intercept_}")
+    print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
+    print(f"Regression Formula: {reg.get_formula()}")
+    
+    # Example Usage RADAR (Random Sample Consensus) Regression
+    # ----------------------------------------------------------------------------
+    reg = RANSAC(n=20, k=300, t=0.01, d=10, model=None, 
+                 auto_scale_t=True, scale_t_factor=2,
+                 auto_scale_n=False, scale_n_factor=2                
+                 )
+    reg.fit(X, y)
+    
+    print("\nExample Usage RANSAC (Random Sample Consensus) Regression")
+    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
     print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
     print(f"Regression Formula: {reg.get_formula()}")
     
