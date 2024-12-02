@@ -476,7 +476,7 @@ class RANSAC(object):
         
         # If the model was not fit, scale the threshold
         if self.best_fit is None and self.scale_threshold:
-            print(f"\tNo model fit, scaling threshold from {self.t} to {self.scale_t_factor * self.t}")
+            print(f"\tNo model fit, scaling threshold from {self.t:.2} to {(self.scale_t_factor * self.t):.2}")
             self.t *= self.scale_t_factor
             self.fit(X, y)
         
