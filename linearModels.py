@@ -254,7 +254,6 @@ class Bayesian(object):
             
             # Check for convergence
             if coef_old_ is not None and np.sum(np.abs(coef_ - coef_old_)) < self.tol:
-                # print(f"Converged in {iter} iterations.")
                 break
             coef_old_ = np.copy(coef_)  # Copy the coefficients
         
@@ -503,6 +502,88 @@ class RANSAC(object):
             return self.best_fit.get_formula()
         except:
             return "No model fit available"
+        
+class PassiveAggressiveRegressor(object):
+    """
+    Passive Aggressive Regressor class
+    """
+    def __init__(self, C=1.0, max_iter=1000, tol=1e-3):
+        """
+        Initialize the linear model with the given parameters.
+        """
+        self.C = C                              # Regularization parameter/step size
+        self.max_iter = max_iter                # The maximum number of passes over the training data
+        self.tol = tol                          # The stopping criterion
+        
+        self.coef_ = None                       # The learned weights
+        self.intercept_ = None                  # The learned intercept
+     
+    def fit(self, X, y, save_steps=False):
+        """
+        Fit the model to the data.
+        Save the weights and the intercept at each iteration if save_steps is True.
+        """
+        # Initialize the weights and the intercept
+        self.coef_ = np.zeros(X.shape[1])
+        self.intercept_ = 0.0
+        
+        # Initialize lists to store the weights and intercept at each iteration
+        if save_steps:
+            self.steps_ = []
+
+        # For each iteration
+        for _ in range(self.max_iter):
+            print(f"\tIteration: {_}")
+            # Copy the weights for the previous iteration
+            prev_coef = self.coef_.copy()
+            
+            # For each sample, each sample is a pass over the training data
+            for i in range(X.shape[0]):
+                y_pred = np.dot(X[i], self.coef_) + self.intercept_     # Compute the predicted value
+                
+                loss = max(0, np.abs(y[i] - y_pred) - self.tol)                 # Compute the hinge loss (max(0, |y - y_pred| - tol))
+                learning_rate = loss / (np.dot(X[i], X[i]) + 1 / (2 * self.C))  # Compute the learning rate (loss / (||X||^2 + 1 / (2 * C)))
+                
+                # If loss is greater than 0, update the weights
+                if loss > 0:                
+                    self.coef_ += learning_rate * X[i] * np.sign(y[i] - y_pred)    # Update the weights (w = w + learning_rate * x * sign(y - y_pred))
+                    self.intercept_ += learning_rate * np.sign(y[i] - y_pred)      # Update the intercept (b = b + learning_rate * sign(y - y_pred))
+            
+            # Save the weights and intercept at each iteration
+            if save_steps:
+                self.steps_.append((self.coef_.copy(), self.intercept_))
+                
+            # Check for convergence
+            weight_diff = np.linalg.norm(self.coef_ - prev_coef)
+            if weight_diff < self.tol:
+                break
+        
+    def predict(self, X):
+        """
+        Predict using the linear model
+        """
+        return np.dot(X, self.coef_) + self.intercept_   
+    
+    def predict_all_steps(self, X):
+        """
+        Predict using the linear model at each iteration
+        """ 
+        assert hasattr(self, 'steps_'), "Model has not been fitted with save_steps=True"
+        
+        predictions = []
+        for coef, intercept in self.steps_:
+            predictions.append(np.dot(X, coef) + intercept)
+        
+        return predictions
+    
+    def get_formula(self):
+        """
+        Returns the formula of the model
+        """
+        terms = [f"{coef:.4f} * x_{i}" for i, coef in enumerate(self.coef_)]    # Create the terms of the formula
+        formula = " + ".join(terms)                                             # Join the terms with " + "
+        return f"y = {formula} + {self.intercept_:.2f}"        
+        
 
 if __name__ == "__main__":
     from sklearn.metrics import r2_score
@@ -595,6 +676,18 @@ if __name__ == "__main__":
     print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
     print(f"Regression Formula: {reg.get_formula()}")
     
+    
+    # Example Usage Passive Aggressive Regressor
+    # ----------------------------------------------------------------------------
+    reg = PassiveAggressiveRegressor(C=.001, max_iter=1000, tol=1e-4)
+    reg.fit(X, y, save_steps=True)
+    
+    print("\nExample Usage Passive Aggressive Regressor")
+    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
+    print(f"Regression Coefficients: {reg.coef_}")
+    print(f"Regression Intercept: {reg.intercept_}")
+    print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
+    print(f"Regression Formula: {reg.get_formula()}")
     
 
     # # # Example plot
