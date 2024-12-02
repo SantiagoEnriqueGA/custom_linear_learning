@@ -155,7 +155,7 @@ Regression Formula: y = 7.74 + 33.7898 * x_0 + 42.2570 * x_1 + 13.4509 * x_2 + 2
 ```
 
 ### RANSAC Visualized
-The plot below shows how RANSAC results in a fitted model that best represents the inliers of the data.
+The plot below shows how RANSAC results in a fitted model that better represents the inliers of the data.
 
 ![alt text](https://raw.githubusercontent.com/SantiagoEnriqueGA/custom_linear_learning/refs/heads/main/plots/ransac_vis.png)
 
