@@ -584,177 +584,196 @@ class PassiveAggressiveRegressor(object):
         formula = " + ".join(terms)                                             # Join the terms with " + "
         return f"y = {formula} + {self.intercept_:.2f}"        
         
+class PolynomialTransform(object):
+    """
+    Transforms features into polynomial features
+    """
+    def __init__(self, degree=2):
+        self.degree = degree
+        
+    def fit(self, X):
+        """
+        Fit the model to the data
+        """
+        from itertools import combinations_with_replacement
+        
+        self.n_samples, self.n_features = X.shape
+        
+        # Generate all possible combinations of features(X) of degree n
+        self.combinations = []
+        for d in range(1, self.degree + 1):
+            self.combinations.extend(combinations_with_replacement(range(self.n_features), d))
+        
+        self.n_output_features = len(self.combinations) + 1  # +1 for the bias term
+    
+    def transform(self, X):
+        """
+        Transform the data into polynomial features
+        """
+        n_samples = X.shape[0]
+        
+        # Initialize the polynomial features with the bias term
+        X_poly = np.empty((n_samples, self.n_output_features))
+        X_poly[:, 0] = 1  # Bias term
+        
+        # For each combination of features, compute the product of the features
+        for i, comb in enumerate(self.combinations, start=1):
+            X_poly[:, i] = np.prod(X[:, comb], axis=1)
+        
+        # Return the polynomial features
+        return X_poly
+
+    def fit_transform(self, X):
+        """
+        Fit to data, then transform it
+        """
+        self.fit(X)
+        return self.transform(X)
 
 if __name__ == "__main__":
     from sklearn.metrics import r2_score
 
     from sklearn.datasets import make_regression
-    X, y = make_regression(n_samples=1000, n_features=5, noise=25, random_state=42)
-    to_predict = np.array([[1,2,3,4,5]])
+    # X, y = make_regression(n_samples=1000, n_features=5, noise=25, random_state=42)
+    # to_predict = np.array([[1,2,3,4,5]])
     
-    # import pandas as pd
-    # df = pd.read_csv('data/carsDotCom_prepared.csv')
-    # X = df.drop(columns=['Price']).values
-    # y = df['Price'].values
+    # # import pandas as pd
+    # # df = pd.read_csv('data/carsDotCom_prepared.csv')
+    # # X = df.drop(columns=['Price']).values
+    # # y = df['Price'].values
     
-    to_predict = X[0].reshape(1, -1)
+    # to_predict = X[0].reshape(1, -1)
 
-    # Example Usage OLS (Ordinary Least Squares) Regression
-    # ----------------------------------------------------------------------------
-    reg = OrdinaryLeastSquares(fit_intercept=True)
-    reg.fit(X, y)
-
-    print("\nExample Usage OLS (Ordinary Least Squares) Regression")
-    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
-    print(f"Regression Coefficients: {reg.coef_}")
-    print(f"Regression Intercept: {reg.intercept_}")
-    print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
-    print(f"Regression Formula: {reg.get_formula()}")
-
-
-    # Example Usage Ridge Regression
-    # ----------------------------------------------------------------------------
-    reg = Ridge(alpha=0.5, fit_intercept=True)
-    reg.fit(X, y)
-
-    print("\nExample Usage Ridge Regression")
-    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
-    print(f"Regression Coefficients: {reg.coef_}")
-    print(f"Regression Intercept: {reg.intercept_}")
-    print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
-    print(f"Regression Formula: {reg.get_formula()}")
-
-
-    # Example Usage Lasso Regression
-    # ----------------------------------------------------------------------------
-    reg = Lasso(alpha=0.1, fit_intercept=True)
-    reg.fit(X, y)
-
-    print("\nExample Usage Lasso Regression")
-    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
-    print(f"Regression Coefficients: {reg.coef_}")
-    print(f"Regression Intercept: {reg.intercept_}")
-    print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
-    print(f"Regression Formula: {reg.get_formula()}")
-
-    # Example Usage Lasso Regression
-    # ----------------------------------------------------------------------------
-    reg = Bayesian(max_iter=300, tol=0.0001, alpha_1=1e-06, alpha_2=1e-06, lambda_1=1e-06, lambda_2=1e-06, fit_intercept = True)
-    reg.fit(X, y)
-
-    print("\nExample Usage Bayesian Regression")
-    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
-    print(f"Regression Coefficients: {reg.coef_}")
-    print(f"Regression Intercept: {reg.intercept_}")
-    print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
-    print(f"Regression Formula: {reg.get_formula()}")
-    
-    print("\nExample Usage Bayesian Regression with Hyperparameter Tuning")
-    reg = Bayesian(max_iter=300, tol=0.0001, alpha_1=1e-06, alpha_2=1e-06, lambda_1=1e-06, lambda_2=1e-06, fit_intercept = True)
-    alpha_1, alpha_2, lambda_1, lambda_2 = reg.tune(X, y, beta1=0.9, beta2=0.999, iter=1000)
-    reg.fit(X, y)
-    print(f"Best Hyperparameters: alpha_1={alpha_1:.2f}, alpha_2={alpha_2:.2f}, lambda_1={lambda_1:.2f}, lambda_2={lambda_2:.2f}")
-    
-    # reg = Bayesian(alpha_1=alpha_1, alpha_2=alpha_2, lambda_1=lambda_1, lambda_2=lambda_2, fit_intercept = True)
-    print("Results after tuning")
-    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
-    print(f"Regression Coefficients: {reg.coef_}")
-    print(f"Regression Intercept: {reg.intercept_}")
-    print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
-    print(f"Regression Formula: {reg.get_formula()}")
-    
-    # Example Usage RADAR (Random Sample Consensus) Regression
-    # ----------------------------------------------------------------------------
-    reg = RANSAC(n=20, k=300, t=0.01, d=10, model=None, 
-                 auto_scale_t=True, scale_t_factor=2,
-                 auto_scale_n=False, scale_n_factor=2                
-                 )
-    reg.fit(X, y)
-    
-    print("\nExample Usage RANSAC (Random Sample Consensus) Regression")
-    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
-    print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
-    print(f"Regression Formula: {reg.get_formula()}")
-    
-    
-    # Example Usage Passive Aggressive Regressor
-    # ----------------------------------------------------------------------------
-    reg = PassiveAggressiveRegressor(C=.001, max_iter=1000, tol=1e-4)
-    reg.fit(X, y, save_steps=True)
-    
-    print("\nExample Usage Passive Aggressive Regressor")
-    print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
-    print(f"Regression Coefficients: {reg.coef_}")
-    print(f"Regression Intercept: {reg.intercept_}")
-    print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
-    print(f"Regression Formula: {reg.get_formula()}")
-    
-
-    # # # Example plot
+    # # Example Usage OLS (Ordinary Least Squares) Regression
     # # ----------------------------------------------------------------------------
-    # import matplotlib.pyplot as plt
-    
-    # X, y = make_regression(n_samples=1000, n_features=1, noise=15, random_state=42)
-
-    # # Plotting the points X and y
-    # plt.figure(figsize=(10, 6))
-    # plt.scatter(X[:, 0], y, color='blue', label='Data Points')
-
-    # # Plotting the OLS regression line
     # reg = OrdinaryLeastSquares(fit_intercept=True)
     # reg.fit(X, y)
-    # plt.plot(X, reg.predict(X), color='red', label='OLS Regression Line')
 
-    # # Plotting the Ridge regression line
+    # print("\nExample Usage OLS (Ordinary Least Squares) Regression")
+    # print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
+    # print(f"Regression Coefficients: {reg.coef_}")
+    # print(f"Regression Intercept: {reg.intercept_}")
+    # print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
+    # print(f"Regression Formula: {reg.get_formula()}")
+
+
+    # # Example Usage Ridge Regression
+    # # ----------------------------------------------------------------------------
     # reg = Ridge(alpha=0.5, fit_intercept=True)
     # reg.fit(X, y)
-    # plt.plot(X, reg.predict(X), color='green', label='Ridge Regression Line, Alpha=0.5')
 
-    # # Plotting the Lasso regression line
-    # reg = Lasso(alpha=0.5, fit_intercept=True)
+    # print("\nExample Usage Ridge Regression")
+    # print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
+    # print(f"Regression Coefficients: {reg.coef_}")
+    # print(f"Regression Intercept: {reg.intercept_}")
+    # print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
+    # print(f"Regression Formula: {reg.get_formula()}")
+
+
+    # # Example Usage Lasso Regression
+    # # ----------------------------------------------------------------------------
+    # reg = Lasso(alpha=0.1, fit_intercept=True)
     # reg.fit(X, y)
-    # plt.plot(X, reg.predict(X), color='orange', label='Lasso Regression Line, Alpha=0.5')
-    
-    # # Plotting the Bayesian regression line
-    # reg = Bayesian(max_iter=300, tol=0.0001, alpha_1=1e-06, alpha_2=1, lambda_1=1, lambda_2=1e-06, fit_intercept = True)
+
+    # print("\nExample Usage Lasso Regression")
+    # print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
+    # print(f"Regression Coefficients: {reg.coef_}")
+    # print(f"Regression Intercept: {reg.intercept_}")
+    # print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
+    # print(f"Regression Formula: {reg.get_formula()}")
+
+    # # Example Usage Lasso Regression
+    # # ----------------------------------------------------------------------------
+    # reg = Bayesian(max_iter=300, tol=0.0001, alpha_1=1e-06, alpha_2=1e-06, lambda_1=1e-06, lambda_2=1e-06, fit_intercept = True)
     # reg.fit(X, y)
-    # plt.plot(X, reg.predict(X), color='purple', label='Bayesian Regression Line')
+
+    # print("\nExample Usage Bayesian Regression")
+    # print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
+    # print(f"Regression Coefficients: {reg.coef_}")
+    # print(f"Regression Intercept: {reg.intercept_}")
+    # print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
+    # print(f"Regression Formula: {reg.get_formula()}")
     
-    # # Plotting the Bayesian regression line, after tuning
+    # print("\nExample Usage Bayesian Regression with Hyperparameter Tuning")
     # reg = Bayesian(max_iter=300, tol=0.0001, alpha_1=1e-06, alpha_2=1e-06, lambda_1=1e-06, lambda_2=1e-06, fit_intercept = True)
     # alpha_1, alpha_2, lambda_1, lambda_2 = reg.tune(X, y, beta1=0.9, beta2=0.999, iter=1000)
     # reg.fit(X, y)
-    # plt.plot(X, reg.predict(X), color='brown', label='Bayesian Regression Line, Tuned')
+    # print(f"Best Hyperparameters: alpha_1={alpha_1:.2f}, alpha_2={alpha_2:.2f}, lambda_1={lambda_1:.2f}, lambda_2={lambda_2:.2f}")
     
-
-    # # Adding labels and legend
-    # plt.xlabel('Feature 0')
-    # plt.ylabel('Target')
-    # plt.title('Regression Lines')
-    # plt.legend()
-    # plt.show()
-
-
-    # # Example plot, Ridge regression lines for different alpha values
+    # # reg = Bayesian(alpha_1=alpha_1, alpha_2=alpha_2, lambda_1=lambda_1, lambda_2=lambda_2, fit_intercept = True)
+    # print("Results after tuning")
+    # print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
+    # print(f"Regression Coefficients: {reg.coef_}")
+    # print(f"Regression Intercept: {reg.intercept_}")
+    # print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
+    # print(f"Regression Formula: {reg.get_formula()}")
+    
+    # # Example Usage RADAR (Random Sample Consensus) Regression
     # # ----------------------------------------------------------------------------
-    # # Plotting the points X and y
+    # reg = RANSAC(n=20, k=300, t=0.01, d=10, model=None, 
+    #              auto_scale_t=True, scale_t_factor=2,
+    #              auto_scale_n=False, scale_n_factor=2                
+    #              )
+    # reg.fit(X, y)
+    
+    # print("\nExample Usage RANSAC (Random Sample Consensus) Regression")
+    # print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
+    # print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
+    # print(f"Regression Formula: {reg.get_formula()}")
+    
+    
+    # # Example Usage Passive Aggressive Regressor
+    # # ----------------------------------------------------------------------------
+    # reg = PassiveAggressiveRegressor(C=.001, max_iter=1000, tol=1e-4)
+    # reg.fit(X, y, save_steps=True)
+    
+    # print("\nExample Usage Passive Aggressive Regressor")
+    # print(f"R^2 Score: {r2_score(y, reg.predict(X))}")
+    # print(f"Regression Coefficients: {reg.coef_}")
+    # print(f"Regression Intercept: {reg.intercept_}")
+    # print(f"Predicted Value for {to_predict}: {reg.predict(to_predict)}")
+    # print(f"Regression Formula: {reg.get_formula()}")
+    
+    
+    # Example Polynomial Transform of Features for non-linear data 
+    # ----------------------------------------------------------------------------
+    # Plot a curved line, with noise, formula: y = 10 * sin(x) + noise
+    pnts = 300
+    X = np.linspace(0, 5, pnts)
+    y = 10 * np.sin(X) + np.random.normal(0, 1, pnts)
+
+    # Fit OLS Regression
+    reg = OrdinaryLeastSquares(fit_intercept=False)
+    reg.fit(X.reshape(-1, 1), y)
+    
+    # Fit OLS Regression with Polynomial Features (degree=2)
+    poly2 = PolynomialTransform(degree=2)
+    X_poly2 = poly2.fit_transform(X.reshape(-1, 1))
+    reg_poly2 = OrdinaryLeastSquares(fit_intercept=False)
+    reg_poly2.fit(X_poly2, y)
+    
+    # Fit OLS Regression with Polynomial Features (degree=3)
+    poly3 = PolynomialTransform(degree=3)
+    X_poly3 = poly3.fit_transform(X.reshape(-1, 1))
+    reg_poly3 = OrdinaryLeastSquares(fit_intercept=False)
+    reg_poly3.fit(X_poly3, y)
+    
+    print("\nExample Usage Polynomial Transform of Features")
+    print("Base Model: y = 10 * sin(x) + noise")
+    print(f"OLS R^2 Score: {r2_score(y, reg.predict(X.reshape(-1, 1)))}")
+    print(f"OLS Polynomial Degree 2 R^2 Score: {r2_score(y, reg_poly2.predict(X_poly2))}")
+    print(f"OLS Polynomial Degree 3 R^2 Score: {r2_score(y, reg_poly3.predict(X_poly3))}")
+    
+    # import matplotlib.pyplot as plt
     # plt.figure(figsize=(10, 6))
-    # plt.scatter(X[:, 0], y, color='blue', label='Data Points')
-
-    # # Plotting the Ridge regression lines for different alpha values
-    # alphas = [0.1, 0.5, 1.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 500.0]
-    # colors = ['green', 'purple', 'brown', 'pink', 'gray', 'cyan', 'magenta', 'yellow', 'black', 'lime']
-
-    # for alpha, color in zip(alphas, colors):
-    #     reg = Ridge(alpha=alpha, fit_intercept=True)
-    #     reg.fit(X, y)
-    #     plt.plot(X, reg.predict(X), color=color, label=f'Alpha={alpha}')
-
-    # # Adding labels and legend
+    # plt.scatter(X, y, color='blue', label='Data Points', alpha=0.5)
+    # plt.plot(X, reg.predict(X.reshape(-1, 1)), color='red', label='OLS Regression')
+    # plt.plot(X, reg_poly2.predict(X_poly2), color='green', label='OLS Regression Polynomial Degree 2')
+    # plt.plot(X, reg_poly3.predict(X_poly3), color='orange', label='OLS Regression Polynomial Degree 3')
     # plt.xlabel('Feature 0')
     # plt.ylabel('Target')
-    # plt.title('Ridge Regression Lines Different Alpha Values')
+    # plt.title('Sin Curve with Noise')
     # plt.legend()
     # plt.show()
-
+    
 
