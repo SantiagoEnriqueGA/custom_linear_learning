@@ -172,12 +172,9 @@ It is called "passive-aggressive" because:
 
 The model is designed to handle large datasets efficiently and is well-suited for problems where the data arrives in a sequential manner. 
 It aims to achieve a balance between fitting the training data and maintaining a simple model to generalize well on unseen data.
-"""
+
 ### Usage Example
 ```python
-import sys
-import os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from linearModels import PassiveAggressiveRegressor
 from sklearn.datasets import make_regression
 from sklearn.metrics import r2_score
